@@ -1657,6 +1657,10 @@ void MainWindow::ParserUEFI(QVariantMap map) {
   // 9. ReservedMemory
   QVariantList mapRM = map["ReservedMemory"].toList();
   Method::set_TableData(ui->table_uefi_ReservedMemory, mapRM);
+
+  // 10. Unload
+  QVariantList mapUnload = map["Unload"].toList();
+  Method::set_TableData(ui->table_uefi_Unload, mapUnload);
 }
 
 void MainWindow::on_btnSave() { SavePlist(SaveFileName); }
@@ -2150,6 +2154,19 @@ QVariantMap MainWindow::SaveUEFI() {
   subMap["ReservedMemory"] =
       Method::get_TableData(ui->table_uefi_ReservedMemory);
 
+  // 10. Unload
+  QString ver = lblVer->text();
+  ver = ver.replace("OpenCore", "");
+  QStringList list = ver.split("[");
+  if (list.count() > 0) {
+    ver = list.at(0);
+  }
+  ver = ver.trimmed();
+  qDebug() << "ver=" << ver;
+  if (isUnload) {
+    subMap["Unload"] = Method::get_TableData(ui->table_uefi_Unload);
+  }
+
   return subMap;
 }
 
@@ -2196,9 +2213,9 @@ QByteArray MainWindow::HexStringToByteArray(QString HexString) {
       if (ok) {
         ret.append(c);
       } else {
-        qDebug() << "非法的16进制字符：" << s;
-        QMessageBox::warning(0, tr("错误："),
-                             QString("非法的16进制字符: \"%1\"").arg(s));
+        // qDebug() << "非法的16进制字符：" << s;
+        // QMessageBox::warning(0, tr("错误："),
+        //                      QString("非法的16进制字符: \"%1\"").arg(s));
       }
     }
   }
@@ -4100,6 +4117,14 @@ void MainWindow::on_table_uefi_ReservedMemory_currentCellChanged(
                      currentRow, currentColumn);
 }
 
+void MainWindow::on_table_uefi_Unload_currentCellChanged(int currentRow,
+                                                         int currentColumn,
+                                                         int previousRow,
+                                                         int previousColumn) {
+  currentCellChanged(ui->table_uefi_Unload, previousRow, previousColumn,
+                     currentRow, currentColumn);
+}
+
 void MainWindow::on_btnHelp() {
   QString qtManulFile = userDataBaseDir + "doc/Configuration.pdf";
   QDesktopServices::openUrl(QUrl::fromLocalFile(qtManulFile));
@@ -4790,6 +4815,12 @@ void MainWindow::on_listMain_itemSelectionChanged() {
     strList.append(tr("ProtocolOverrides"));
     strList.append(tr("Quirks"));
     strList.append(tr("ReservedMemory"));
+
+    if (isUnload) {
+      strList.append(tr("Unload"));
+    } else {
+      strList.removeOne("Unload");
+    }
   }
 
   if (ui->listMain->currentRow() == 8) {
@@ -6713,6 +6744,10 @@ void MainWindow::on_table_uefi_ReservedMemory_cellDoubleClicked(int row,
   set_InitLineEdit(ui->table_uefi_ReservedMemory, row, column);
 }
 
+void MainWindow::on_table_uefi_Unload_cellDoubleClicked(int row, int column) {
+  set_InitLineEdit(ui->table_uefi_Unload, row, column);
+}
+
 void MainWindow::on_table_dp_del_cellDoubleClicked(int row, int column) {
   set_InitLineEdit(ui->table_dp_del, row, column);
 }
@@ -7886,6 +7921,13 @@ void MainWindow::uefi_cellDoubleClicked() {
     col = t->currentColumn();
     on_table_uefi_ReservedMemory_cellDoubleClicked(row, col);
   }
+
+  t = ui->table_uefi_Unload;
+  if (t->hasFocus()) {
+    row = t->currentRow();
+    col = t->currentColumn();
+    on_table_uefi_Unload_cellDoubleClicked(row, col);
+  }
 }
 
 void MainWindow::EnterPress() {
@@ -8103,7 +8145,8 @@ void MainWindow::copyLine(QTableWidget* w, QAction* copyAction) {
     QString name = w->objectName();
     QString qfile = strConfigPath + name + ".ini";
 
-    QItemSelectionModel* selections = w->selectionModel();  // 返回当前的选择模式
+    QItemSelectionModel* selections =
+        w->selectionModel();  // 返回当前的选择模式
     QModelIndexList selectedsList =
         selections->selectedIndexes();  // 返回所有选定的模型项目索引列表
 
@@ -8877,8 +8920,6 @@ void MainWindow::on_actionQuit_triggered() { this->close(); }
 void MainWindow::on_actionUpgrade_OC_triggered() {
   dlgSyncOC->init_Sync_OC_Table();
   dlgSyncOC->resizeWindowsPos();
-
-  myDlgPreference->ui->rbtnAPI->click();
 }
 
 void MainWindow::initColorValue() {
@@ -9782,7 +9823,7 @@ void MainWindow::on_actionDocumentation_triggered() {
     QDesktopServices::openUrl(url_en);
   } else {
     QUrl url_cn(QString("https://github.com/ic005k/" + strAppName +
-                        "/blob/master/READMe-cn.md"));
+                        "/blob/master/READMe.md"));
     QDesktopServices::openUrl(url_cn);
   }
 }
@@ -9875,6 +9916,8 @@ void MainWindow::on_actionAdd_triggered() {
     ui->btnUEFIDrivers_Add->click();
 
   if (ui->table_uefi_ReservedMemory->hasFocus()) ui->btnUEFIRM_Add->click();
+
+  if (ui->table_uefi_Unload->hasFocus()) ui->btnUEFIUnload_Add->click();
 }
 
 void MainWindow::on_actionDelete_triggered() {
@@ -9914,6 +9957,8 @@ void MainWindow::on_actionDelete_triggered() {
   if (ui->table_uefi_drivers->hasFocus()) ui->btnUEFIDrivers_Del->click();
 
   if (ui->table_uefi_ReservedMemory->hasFocus()) ui->btnUEFIRM_Del->click();
+
+  if (ui->table_uefi_Unload->hasFocus()) ui->btnUEFIUnload_Del->click();
 }
 
 void MainWindow::checkSystemAudioVolume() {
@@ -10227,6 +10272,21 @@ void MainWindow::smart_UpdateKeyField() {
       ui->table_uefi_ReservedMemory,
       Method::get_HorizontalHeaderList("UEFI", "ReservedMemory"));
 
+  // Unload
+  mapMain.clear();
+  mapSub.clear();
+  mapMain = mapTatol["UEFI"].toMap();
+  if (mapMain.keys().contains("Unload")) {
+    isUnload = true;
+  } else {
+    isUnload = false;
+  }
+  if (ui->listMain->currentRow() == 7) {
+    on_listMain_itemSelectionChanged();
+  }
+  Method::init_Table(ui->table_uefi_Unload,
+                     Method::get_HorizontalHeaderList("UEFI", "Unload"));
+
   if (!loading) {
     for (int i = 0; i < listOCATWidgetDelList.count(); i++) {
       QWidget* w0 = listOCATWidgetDelList.at(i);
@@ -10298,4 +10358,12 @@ void MainWindow::on_actionOpenCoreChineseDoc_triggered() {
 void MainWindow::dataClassChange_uefi_drivers() {
   ui->table_uefi_drivers->item(c_row, 3)->setTextAlignment(Qt::AlignCenter);
   ui->table_uefi_drivers->item(c_row, 3)->setText(cboxDataClass->currentText());
+}
+
+void MainWindow::on_btnUEFIUnload_Add_clicked() {
+  Method::add_OneLine(ui->table_uefi_Unload);
+}
+
+void MainWindow::on_btnUEFIUnload_Del_clicked() {
+  del_item(ui->table_uefi_Unload);
 }
